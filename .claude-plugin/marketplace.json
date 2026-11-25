@@ -1,5 +1,5 @@
 {
-  "name": "embertide-local",
+  "name": "embertide",
   "owner": { "name": "Daniel Clowes" },
   "plugins": [{ "name": "embertide-terminal", "source": "./" }]
 }
