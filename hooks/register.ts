@@ -1,9 +1,9 @@
-import type { Register, ThemeSetArgs, ThemeSound, ThemeStyle } from 'claude-code'
+import type { Register, RenderElement, ThemeBackdrop, ThemeColors, ThemeSetArgs, ThemeSound, ThemeStyle } from 'claude-code'
 
 import { makeColors } from './make-colors.js'
 
 // EmberTide, from ~/Projects/embertide. Dark only, as the terminal theme is.
-const VERSION = '0.5.2'
+const VERSION = '0.7.2'
 const PAGE = '#001219'
 const FOREGROUND = '#e9d8a6'
 const BRIGHT = '#f6ebca'
@@ -16,6 +16,7 @@ const PROMPT_BOX = 'surface-3'
 const REPLY_BOX = PAGE
 // EmberTide's bright black (#566165) is under 4.5:1 on the page, so dim text is lighter.
 const DIM = '#8c9896'
+const WASH = '#bfe3ea'
 // A 48 by 40 box with corners of radius 12, as the app's own boxes have (measured
 // from a screenshot), its outline inset half a point for the border.
 const ROUNDED_BOX =
@@ -46,6 +47,11 @@ const { theme, problems } = makeColors({
         'text-secondary': '#cdbf95',
         'text-muted': DIM,
       },
+      // Stop 0 is the tone the app lays over surfaces at low opacity for hover and
+      // selected rows and for hairline borders. From the cream text it would be a
+      // cream, which reads olive over navy, so it is pinned to a pale teal. Text
+      // doesn't use this stop. Primary buttons and tooltip text do.
+      stops: { 0: WASH },
     },
     git: {
       added: '#8fe259',
@@ -115,7 +121,9 @@ const STYLE: ThemeStyle = {
     },
   },
   // Tool rows keep the app's own box, and take the code font and the dim color.
-  ToolUse: { fontFamily: ['code'], color: DIM },
+  // The page color under the words: over a backdrop a text color draws only on a
+  // solid fill.
+  ToolUse: { fontFamily: ['code'], color: DIM, backgroundColor: 'surface-1' },
 }
 
 // Quiet square-wave blips, as a PC speaker makes. Off until the speaker in the
@@ -131,12 +139,42 @@ const SOUND: ThemeSound = {
   },
 }
 
-const COLORS_ONLY: ThemeSetArgs = { colors: theme }
+// The app has a color of its own for the sidebar, `surface-sidebar`, a neutral
+// gray (#1f1f1f) by default. This build's `makeColors` doesn't know the name, so
+// it is added by hand: a newer app may take it, and an older one ignores it.
+const colors: ThemeColors = {
+  ...theme,
+  inputs: { ...theme.inputs, dark: { ...theme.inputs.dark, 'surface-sidebar': PAGE } },
+}
+
+const COLORS_ONLY: ThemeSetArgs = { colors }
 const STYLED: ThemeSetArgs = { ...COLORS_ONLY, style: STYLE }
+
+// A flat scene in the chat page's color, with a glass tint at full strength
+// and no blur. It is there for the sidebar alone: with no backdrop
+// the app lays the sidebar over a neutral gray of its own, which reads yellowish
+// beside the navy. Over a backdrop the app tints the sidebar from this glass.
+const CHAT_PAGE = '#00161f'
+const SCENE = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><rect width="100" height="100" fill="${CHAT_PAGE}"/></svg>`
+// `glass: false`: a glass tint recolors every panel, the page and the message
+// box among them, so the panels are left as they are.
+const BACKDROP: ThemeBackdrop = { scene: 'flat', glass: false }
+const WITH_SCENE: ThemeSetArgs = { ...STYLED, backdrop: BACKDROP }
 // Fullest first: a build that doesn't take `sound` or `style` refuses the whole set.
-const LOOKS: readonly ThemeSetArgs[] = [{ ...STYLED, sound: SOUND }, STYLED, COLORS_ONLY]
+const LOOKS: readonly ThemeSetArgs[] = [{ ...WITH_SCENE, sound: SOUND }, WITH_SCENE, STYLED, COLORS_ONLY]
 
 export const register: Register = on => {
+  on('ui.render', { component: 'Backdrop' }, ($, e, next) => {
+    if (e.surface !== 'desktop' && e.surface !== 'mobile') {
+      return next(e)
+    }
+
+    const { Svg } = $.ui.resolve(e)
+
+    // `h` is typed for any node; an element with these props is always returned.
+    return h(Svg, { source: SCENE, alt: 'A flat navy ground' }) as RenderElement
+  })
+
   on('session.start', async ($, e, next) => {
     const unpainted = problems.find(line => line.startsWith("Desktop won't paint"))
 
@@ -145,7 +183,7 @@ export const register: Register = on => {
     }
 
     // Says so when a fuller look was refused, and why.
-    const names = ['full look', 'look without sound', 'colors only']
+    const names = ['full look', 'look without sound', 'look without backdrop or sound', 'colors only']
     let refused = ''
 
     for (const [index, look] of LOOKS.entries()) {

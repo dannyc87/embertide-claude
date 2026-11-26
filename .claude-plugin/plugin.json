@@ -1,6 +1,6 @@
 {
   "name": "embertide-terminal",
-  "version": "0.5.2",
+  "version": "0.7.2",
   "description": "EmberTide colors and a terminal look for the desktop app: code-font type, rounded message boxes, prompt chevrons.",
   "license": "MIT",
   "author": {
