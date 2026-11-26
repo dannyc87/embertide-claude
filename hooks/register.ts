@@ -3,7 +3,7 @@ import type { Register, RenderElement, ThemeBackdrop, ThemeColors, ThemeSetArgs,
 import { makeColors } from './make-colors.js'
 
 // EmberTide, from ~/Projects/embertide. Dark only, as the terminal theme is.
-const VERSION = '0.7.2'
+const VERSION = '0.7.3'
 const PAGE = '#001219'
 const FOREGROUND = '#e9d8a6'
 const BRIGHT = '#f6ebca'
@@ -190,9 +190,12 @@ export const register: Register = on => {
       try {
         const set = await $.theme.set(look)
         const drawn = set.isDrawn ? '' : ` (not drawn: ${set.reason})`
+        // A requestId on an undrawn set means the theme stands and waits for a
+        // surface to attach, so there is nothing for the person to act on.
+        const isWaiting = !set.isDrawn && set.requestId !== undefined
 
-        // Quiet when the full look is drawn.
-        if (index > 0 || !set.isDrawn) {
+        // Quiet when the full look is drawn, or set and waiting for a surface.
+        if (index > 0 || (!set.isDrawn && !isWaiting)) {
           $.ui.toast(`EmberTide ${VERSION}: ${names[index]} set${drawn}${refused}`)
         }
         break
